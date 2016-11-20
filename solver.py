@@ -1,0 +1,96 @@
+import numpy as np
+
+
+class EmptyBox(object):
+    def __init__(self, row, col, options=None):
+        self.row = row
+        self.col = col
+        self.options = options
+        return
+
+
+class Solver(object):
+    def __init__(self, table):
+        self.table = table
+        self.solution = np.zeros((9, 9))
+        self.empty_cells = self.findEmptyCells()
+        return
+
+    def findEmptyCells(self):
+        empty_cells = list()
+        for row in xrange(9):
+            for col in xrange(9):
+                if self.table[row, col] == 0:
+                    empty_cells.append(EmptyBox(row, col))
+        return empty_cells
+
+    def solve(self):
+        for box in list(self.empty_cells):
+            row_numbers = self.checkRow(box.row)
+            col_numbers = self.checkCol(box.col)
+            box_numbers = self.checkBox(box.row, box.col)
+            not_numbers = list(row_numbers.union(col_numbers, box_numbers))
+            options = [opt for opt in range(1, 10) if opt not in not_numbers]
+            if len(options) == 1:
+                self.table[box.row][box.col] = options[0]
+                self.empty_cells.remove(box)
+            print "In row %d and column %d:" % (box.row, box.col)
+            print options
+        if len(self.empty_cells) != 0:
+            # self.solve()
+            pass
+        return self.table
+
+    def checkRow(self, row):
+        excl_numbers = set(self.table[row, :])
+        excl_numbers.remove(0)
+        return excl_numbers
+
+    def checkCol(self, col):
+        excl_numbers = set(self.table[:, col])
+        excl_numbers.remove(0)
+        return excl_numbers
+
+    def checkBox(self, row, col):
+        excl_numbers = set()
+        box_row, box_col = self.findBox(row, col)
+        for row in xrange(box_row * 3, (box_row + 1) * 3):
+            for col in xrange(box_col * 3, (box_col + 1) * 3):
+                excl_numbers.add(self.table[row, col])
+        excl_numbers.remove(0)
+        return excl_numbers
+
+    def excludeFromBox(self):
+        return
+
+    def findBox(self, row, col):
+        return row / 3, col / 3
+
+
+if __name__ == '__main__':
+    import sys
+    puzzle = np.array([[6, 0, 0, 0, 2, 0, 0, 0, 9],
+                       [0, 1, 0, 3, 0, 7, 0, 5, 0],
+                       [0, 0, 3, 0, 0, 0, 1, 0, 0],
+                       [0, 9, 0, 0, 0, 0, 0, 2, 0],
+                       [2, 0, 0, 8, 7, 5, 0, 0, 3],
+                       [0, 0, 5, 0, 1, 0, 4, 0, 0],
+                       [0, 7, 0, 0, 8, 0, 0, 9, 0],
+                       [0, 0, 1, 0, 4, 0, 8, 0, 0],
+                       [0, 0, 0, 2, 5, 9, 0, 0, 0]])
+
+    puzzle2 = np.array([[0, 8, 0, 1, 0, 0, 0, 0, 0],
+                        [6, 0, 0, 0, 0, 4, 8, 0, 0],
+                        [3, 5, 4, 2, 6, 0, 7, 9, 1],
+                        [2, 9, 3, 0, 8, 0, 0, 0, 4],
+                        [0, 0, 0, 7, 0, 9, 0, 0, 0],
+                        [7, 0, 0, 0, 4, 0, 9, 6, 5],
+                        [8, 2, 9, 0, 5, 7, 6, 1, 3],
+                        [0, 0, 7, 8, 0, 0, 0, 0, 9],
+                        [0, 0, 0, 0, 0, 6, 0, 8, 0]])
+    solver = Solver(puzzle2)
+    try:
+        print solver.solve()
+    except RuntimeError:
+        print "No solution!"
+    sys.exit(0)

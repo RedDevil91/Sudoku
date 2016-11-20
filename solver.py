@@ -1,12 +1,56 @@
 import numpy as np
 
+pos2grid = {
+    (0, 0): 0,
+    (0, 1): 1,
+    (0, 2): 2,
+    (1, 0): 3,
+    (1, 1): 4,
+    (1, 2): 5,
+    (2, 0): 6,
+    (2, 1): 7,
+    (2, 2): 8,
+}
+
 
 class EmptyBox(object):
     def __init__(self, row, col, options=None):
         self.row = row
         self.col = col
         self.options = options
+        self.fill_value = None
         return
+
+
+class Grid(object):
+    def __init__(self, idx):
+        self.boxes = list()
+        self.index = idx
+        return
+
+    def addBox(self, box):
+        self.boxes.append(box)
+        return
+
+    def findUniqeBox(self):
+        boxes = list()
+        uniqe_values = self.findUniqeValue()
+        for value in uniqe_values:
+            for box in self.boxes:
+                if value in box.options:
+                    box.fill_value = value
+                    boxes.append(box)
+                    break
+        return boxes
+
+    def findUniqeValue(self):
+        opts = list()
+        for box in self.boxes:
+            opts += box.options
+        for num in set(opts):
+            if opts.count(num) != 1:
+                opts = [opt for opt in opts if opt != num]
+        return opts
 
 
 class Solver(object):
@@ -33,11 +77,11 @@ class Solver(object):
             options = [opt for opt in range(1, 10) if opt not in not_numbers]
             if len(options) == 1:
                 self.table[box.row][box.col] = options[0]
-                self.empty_cells.remove(box)
-            print "In row %d and column %d:" % (box.row, box.col)
-            print options
+            else:
+                box.options = options
+        self.checkGridOptions()
         if len(self.empty_cells) != 0:
-            # self.solve()
+            self.solve()
             pass
         return self.table
 
@@ -53,17 +97,29 @@ class Solver(object):
 
     def checkBox(self, row, col):
         excl_numbers = set()
-        box_row, box_col = self.findBox(row, col)
+        box_row, box_col = self.getGridPos(row, col)
         for row in xrange(box_row * 3, (box_row + 1) * 3):
             for col in xrange(box_col * 3, (box_col + 1) * 3):
                 excl_numbers.add(self.table[row, col])
         excl_numbers.remove(0)
         return excl_numbers
 
-    def excludeFromBox(self):
+    def checkGridOptions(self):
+        for grid in self.createGrids():
+                boxes = grid.findUniqeBox()
+                for box in boxes:
+                    self.table[box.row, box.col] = box.fill_value
+        self.empty_cells = self.findEmptyCells()
         return
 
-    def findBox(self, row, col):
+    def createGrids(self):
+        grids = [Grid(idx) for idx in range(9)]
+        for box in self.empty_cells:
+            r, c = self.getGridPos(box.row, box.col)
+            grids[pos2grid[(r, c)]].addBox(box)
+        return grids
+
+    def getGridPos(self, row, col):
         return row / 3, col / 3
 
 

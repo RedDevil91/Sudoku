@@ -70,20 +70,23 @@ class Solver(object):
 
     def solve(self):
         for box in list(self.empty_cells):
-            row_numbers = self.checkRow(box.row)
-            col_numbers = self.checkCol(box.col)
-            box_numbers = self.checkBox(box.row, box.col)
-            not_numbers = list(row_numbers.union(col_numbers, box_numbers))
-            options = [opt for opt in range(1, 10) if opt not in not_numbers]
-            if len(options) == 1:
-                self.table[box.row][box.col] = options[0]
-            else:
-                box.options = options
+            self.getOptions(box)
+            if len(box.options) == 1:
+                self.table[box.row][box.col] = box.options[0]
+                self.empty_cells.remove(box)
         self.checkGridOptions()
         if len(self.empty_cells) != 0:
             self.solve()
-            pass
         return self.table
+
+    def getOptions(self, box):
+        row_numbers = self.checkRow(box.row)
+        col_numbers = self.checkCol(box.col)
+        box_numbers = self.checkBox(box.row, box.col)
+        not_numbers = list(row_numbers.union(col_numbers, box_numbers))
+        options = [opt for opt in range(1, 10) if opt not in not_numbers]
+        box.options = options
+        return
 
     def checkRow(self, row):
         excl_numbers = set(self.table[row, :])
@@ -109,12 +112,13 @@ class Solver(object):
                 boxes = grid.findUniqeBox()
                 for box in boxes:
                     self.table[box.row, box.col] = box.fill_value
-        self.empty_cells = self.findEmptyCells()
+                    self.empty_cells.remove(box)
         return
 
     def createGrids(self):
         grids = [Grid(idx) for idx in range(9)]
         for box in self.empty_cells:
+            self.getOptions(box)
             r, c = self.getGridPos(box.row, box.col)
             grids[pos2grid[(r, c)]].addBox(box)
         return grids

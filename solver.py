@@ -57,6 +57,7 @@ class Solver(object):
     def __init__(self, table):
         self.table = table
         self.empty_cells = self.findEmptyCells()
+        # print self.empty_cells
         return
 
     def findEmptyCells(self):
@@ -71,8 +72,8 @@ class Solver(object):
         # for box in list(self.empty_cells):
         #     self.getOptions(box)
         self.checkRowOptions()
-        self.checkColOptions()
-        self.checkGridOptions()
+        # self.checkColOptions()
+        # self.checkGridOptions()
         if len(self.empty_cells) != 0:
             self.solve()
         return self.table
@@ -87,7 +88,8 @@ class Solver(object):
         if len(box.options) == 1:
             box.fill_value = box.options[0]
             self.setValue(box)
-        return
+            return True
+        return False
 
     def checkRow(self, row):
         excl_numbers = set(self.table[row, :])
@@ -111,38 +113,50 @@ class Solver(object):
     def checkRowOptions(self):
         rows = [[] for r in range(9)]
         for box in list(self.empty_cells):
-            self.getOptions(box)
-            rows[box.row].append(box)
+            if not self.getOptions(box):
+                rows[box.row].append(box)
+        val_boxes = list()
         for row in rows:
             boxes = self.findUniqueBox(row)
-            for box in boxes:
-                self.setValue(box)
+            val_boxes += boxes
+            # for box in boxes:
+            #     self.setValue(box)
+        for box in val_boxes:
+            self.setValue(box)
         return
 
     def checkColOptions(self):
         cols = [[] for c in range(9)]
         for box in list(self.empty_cells):
-            self.getOptions(box)
-            cols[box.col].append(box)
-        for row in cols:
-            boxes = self.findUniqueBox(row)
-            for box in boxes:
-                self.setValue(box)
+            if not self.getOptions(box):
+                cols[box.col].append(box)
+        val_boxes = list()
+        for col in cols:
+            boxes = self.findUniqueBox(col)
+            val_boxes += boxes
+            # for box in boxes:
+            #     self.setValue(box)
+        for box in val_boxes:
+            self.setValue(box)
         return
 
     def checkGridOptions(self):
+        val_boxes = list()
         for grid in self.createGrids():
                 boxes = grid.findUniqeBox()
-                for box in boxes:
-                    self.setValue(box)
+                val_boxes += boxes
+                # for box in boxes:
+                #     self.setValue(box)
+        for box in val_boxes:
+            self.setValue(box)
         return
 
     def createGrids(self):
         grids = [Grid(idx) for idx in range(9)]
         for box in list(self.empty_cells):
-            self.getOptions(box)
-            r, c = self.getGridPos(box.row, box.col)
-            grids[pos2grid[(r, c)]].addBox(box)
+            if not self.getOptions(box):
+                r, c = self.getGridPos(box.row, box.col)
+                grids[pos2grid[(r, c)]].addBox(box)
         return grids
 
     def getGridPos(self, row, col):
@@ -173,9 +187,7 @@ class Solver(object):
         if box in self.empty_cells:
             self.empty_cells.remove(box)
         else:
-            # print self.empty_cells
-            # print box
-            pass
+            print box
         return
 
 if __name__ == '__main__':
@@ -210,7 +222,7 @@ if __name__ == '__main__':
                         [0, 0, 7, 2, 0, 6, 9, 0, 0],
                         [0, 4, 0, 5, 0, 8, 0, 7, 0]])
 
-    solver = Solver(puzzle)
+    solver = Solver(puzzle3)
     try:
         print solver.solve()
     except RuntimeError:

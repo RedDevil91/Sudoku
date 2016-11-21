@@ -32,23 +32,22 @@ class Grid(object):
         self.empty_boxes.append(box)
         return
 
-    def findUniqeBox(self):
-        boxes = list()
-        uniqe_values = self.findUniqeValue()
+    def findUniqeBoxes(self):
+        uniqe_values = self.findUniqeValues()
         for value in uniqe_values:
             for box in self.empty_boxes:
                 if value in box.options:
                     box.fill_value = value
-                    boxes.append(box)
                     break
-        return boxes
+        return
 
-    def findUniqeValue(self):
+    def findUniqeValues(self):
         unique_values = list()
         for box in self.empty_boxes:
             unique_values += box.options
         unique_values = [val for val in unique_values if unique_values.count(val) == 1]
         return unique_values
+
 
 class Solver(object):
     def __init__(self, table):
@@ -66,11 +65,12 @@ class Solver(object):
 
     def solve(self):
         self.checkRowOptions()
-        self.checkColOptions()
-        self.checkGridOptions()
+        # self.checkColOptions()
+        # self.checkGridOptions()
         if len(self.empty_cells) != 0:
             self.solve()
-        return self.table
+            return
+        return
 
     def updateOptions(self):
         for box in list(self.empty_cells):
@@ -126,16 +126,17 @@ class Solver(object):
 
     def checkGridOptions(self):
         self.updateOptions()
-
+        for grid in self.createSubGrids():
+            grid.findUniqeBoxes()
         self.updateEmptyBoxes()
         return
 
-    def createGrids(self):
+    def createSubGrids(self):
         grids = [Grid(idx) for idx in range(9)]
         for box in list(self.empty_cells):
             r, c = self.getGridPos(box.row, box.col)
             grids[pos2grid[(r,c)]].addEmptyBox(box)
-        return
+        return grids
 
     def findUniqueBoxes(self, box_list):
         unique_values = self.findUniqeValues(box_list)
@@ -203,9 +204,10 @@ if __name__ == '__main__':
                         [0, 0, 7, 2, 0, 6, 9, 0, 0],
                         [0, 4, 0, 5, 0, 8, 0, 7, 0]])
 
-    solver = Solver(puzzle)
+    solver = Solver(puzzle2)
     try:
-        print solver.solve()
+        solver.solve()
+        print solver.table
     except RuntimeError:
         print "Can't find solution!"
     sys.exit(0)

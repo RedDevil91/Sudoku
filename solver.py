@@ -57,7 +57,6 @@ class Solver(object):
     def __init__(self, table):
         self.table = table
         self.empty_cells = self.findEmptyCells()
-        # print self.empty_cells
         return
 
     def findEmptyCells(self):
@@ -69,8 +68,6 @@ class Solver(object):
         return empty_cells
 
     def solve(self):
-        # for box in list(self.empty_cells):
-        #     self.getOptions(box)
         self.checkRowOptions()
         # self.checkColOptions()
         # self.checkGridOptions()
@@ -111,76 +108,25 @@ class Solver(object):
         return excl_numbers
 
     def checkRowOptions(self):
-        rows = [[] for r in range(9)]
-        for box in list(self.empty_cells):
-            if not self.getOptions(box):
-                rows[box.row].append(box)
-        val_boxes = list()
-        for row in rows:
-            boxes = self.findUniqueBox(row)
-            val_boxes += boxes
-            # for box in boxes:
-            #     self.setValue(box)
-        for box in val_boxes:
-            self.setValue(box)
         return
 
     def checkColOptions(self):
-        cols = [[] for c in range(9)]
-        for box in list(self.empty_cells):
-            if not self.getOptions(box):
-                cols[box.col].append(box)
-        val_boxes = list()
-        for col in cols:
-            boxes = self.findUniqueBox(col)
-            val_boxes += boxes
-            # for box in boxes:
-            #     self.setValue(box)
-        for box in val_boxes:
-            self.setValue(box)
         return
 
     def checkGridOptions(self):
-        val_boxes = list()
-        for grid in self.createGrids():
-                boxes = grid.findUniqeBox()
-                val_boxes += boxes
-                # for box in boxes:
-                #     self.setValue(box)
-        for box in val_boxes:
-            self.setValue(box)
         return
 
     def createGrids(self):
-        grids = [Grid(idx) for idx in range(9)]
-        for box in list(self.empty_cells):
-            if not self.getOptions(box):
-                r, c = self.getGridPos(box.row, box.col)
-                grids[pos2grid[(r, c)]].addBox(box)
-        return grids
+        return
 
     def getGridPos(self, row, col):
         return row / 3, col / 3
 
     def findUniqueBox(self, box_list):
-        boxes = list()
-        uniqe_values = self.findUniqeValue(box_list)
-        for value in uniqe_values:
-            for box in box_list:
-                if value in box.options:
-                    box.fill_value = value
-                    boxes.append(box)
-                    break
-        return boxes
+        return
 
     def findUniqeValue(self, box_list):
-        opts = list()
-        for box in box_list:
-            opts += box.options
-        for num in set(opts):
-            if opts.count(num) != 1:
-                opts = [opt for opt in opts if opt != num]
-        return opts
+        return
 
     def setValue(self, box):
         self.table[box.row, box.col] = box.fill_value

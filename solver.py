@@ -25,11 +25,16 @@ class EmptyBox(object):
 class Grid(object):
     def __init__(self, idx):
         self.empty_boxes = list()
+        self.fill_values = list()
         self.index = idx
         return
 
     def addEmptyBox(self, box):
         self.empty_boxes.append(box)
+        return
+
+    def addFillValue(self, value):
+        self.fill_values.append(value)
         return
 
     def findUniqeBoxes(self):
@@ -44,9 +49,25 @@ class Grid(object):
     def findUniqeValues(self):
         unique_values = list()
         for box in self.empty_boxes:
-            unique_values += box.options
-        unique_values = [val for val in unique_values if unique_values.count(val) == 1]
+            unique_values += box.options if box.fill_value is None else []
+        unique_values = [val for val in unique_values if (unique_values.count(val) == 1 and
+                                                          val not in self.fill_values)]
         return unique_values
+
+
+class RowOrColumn(object):
+    def __init__(self):
+        self.empty_boxes = list()
+        self.fill_values = list()
+        return
+
+    def addEmptyBox(self, box):
+        self.empty_boxes.append(box)
+        return
+
+    def addFillValue(self, value):
+        self.fill_values.append(value)
+        return
 
 
 class Solver(object):
@@ -65,8 +86,9 @@ class Solver(object):
 
     def solve(self):
         self.checkRowOptions()
-        # self.checkColOptions()
-        # self.checkGridOptions()
+        self.checkColOptions()
+        self.checkGridOptions()
+        self.updateEmptyBoxes()
         if len(self.empty_cells) != 0:
             self.solve()
             return
@@ -82,7 +104,6 @@ class Solver(object):
             box.options = options
             if len(box.options) == 1:
                 box.fill_value = box.options[0]
-        self.updateEmptyBoxes()
         return
 
     def checkRow(self, row):
@@ -106,42 +127,48 @@ class Solver(object):
 
     def checkRowOptions(self):
         self.updateOptions()
-        rows = [[] for r in range(9)]
+        rows = [RowOrColumn() for r in range(9)]
         for box in list(self.empty_cells):
-            rows[box.row].append(box)
+            if not box.fill_value:
+                rows[box.row].addEmptyBox(box)
+            else:
+                rows[box.row].addFillValue(box.fill_value)
         for row in rows:
             self.findUniqueBoxes(row)
-        self.updateEmptyBoxes()
         return
 
     def checkColOptions(self):
         self.updateOptions()
-        cols = [[] for c in range(9)]
+        cols = [RowOrColumn() for c in range(9)]
         for box in list(self.empty_cells):
-            cols[box.col].append(box)
+            if not box.fill_value:
+                cols[box.col].addEmptyBox(box)
+            else:
+                cols[box.col].addFillValue(box.fill_value)
         for col in cols:
             self.findUniqueBoxes(col)
-        self.updateEmptyBoxes()
         return
 
     def checkGridOptions(self):
         self.updateOptions()
         for grid in self.createSubGrids():
             grid.findUniqeBoxes()
-        self.updateEmptyBoxes()
         return
 
     def createSubGrids(self):
         grids = [Grid(idx) for idx in range(9)]
         for box in list(self.empty_cells):
             r, c = self.getGridPos(box.row, box.col)
-            grids[pos2grid[(r,c)]].addEmptyBox(box)
+            if not box.fill_value:
+                grids[pos2grid[(r, c)]].addEmptyBox(box)
+            else:
+                grids[pos2grid[(r, c)]].addFillValue(box.fill_value)
         return grids
 
     def findUniqueBoxes(self, box_list):
         unique_values = self.findUniqeValues(box_list)
         for value in unique_values:
-            for box in box_list:
+            for box in box_list.empty_boxes:
                 if value in box.options:
                     box.fill_value = value
                     break
@@ -149,9 +176,10 @@ class Solver(object):
 
     def findUniqeValues(self, box_list):
         unique_values = list()
-        for box in box_list:
-            unique_values += box.options
-        unique_values = [val for val in unique_values if unique_values.count(val) == 1]
+        for box in box_list.empty_boxes:
+            unique_values += box.options if box.fill_value is None else []
+        unique_values = [val for val in unique_values if (unique_values.count(val) == 1 and
+                                                          val not in box_list.fill_values)]
         return unique_values
 
     def updateEmptyBoxes(self):
@@ -204,7 +232,7 @@ if __name__ == '__main__':
                         [0, 0, 7, 2, 0, 6, 9, 0, 0],
                         [0, 4, 0, 5, 0, 8, 0, 7, 0]])
 
-    solver = Solver(puzzle2)
+    solver = Solver(puzzle)
     try:
         solver.solve()
         print solver.table

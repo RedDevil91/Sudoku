@@ -68,14 +68,11 @@ class Solver(object):
         return empty_cells
 
     def solve(self):
-        for box in list(self.empty_cells):
-            self.getOptions(box)
-            if len(box.options) == 1:
-                box.fill_value = box.options[0]
-                self.setValue(box)
-        self.checkGridOptions()
+        # for box in list(self.empty_cells):
+        #     self.getOptions(box)
         self.checkRowOptions()
         self.checkColOptions()
+        self.checkGridOptions()
         if len(self.empty_cells) != 0:
             self.solve()
         return self.table
@@ -87,6 +84,9 @@ class Solver(object):
         not_numbers = list(row_numbers.union(col_numbers, box_numbers))
         options = [opt for opt in range(1, 10) if opt not in not_numbers]
         box.options = options
+        if len(box.options) == 1:
+            box.fill_value = box.options[0]
+            self.setValue(box)
         return
 
     def checkRow(self, row):
@@ -109,11 +109,10 @@ class Solver(object):
         return excl_numbers
 
     def checkRowOptions(self):
-        rows = [[] for i in range(9)]
-        for box in self.empty_cells:
+        rows = [[] for r in range(9)]
+        for box in list(self.empty_cells):
             self.getOptions(box)
-            if len(box.options) > 1:
-                rows[box.row].append(box)
+            rows[box.row].append(box)
         for row in rows:
             boxes = self.findUniqueBox(row)
             for box in boxes:
@@ -121,8 +120,8 @@ class Solver(object):
         return
 
     def checkColOptions(self):
-        cols = [[] for i in range(9)]
-        for box in self.empty_cells:
+        cols = [[] for c in range(9)]
+        for box in list(self.empty_cells):
             self.getOptions(box)
             cols[box.col].append(box)
         for row in cols:
@@ -140,7 +139,7 @@ class Solver(object):
 
     def createGrids(self):
         grids = [Grid(idx) for idx in range(9)]
-        for box in self.empty_cells:
+        for box in list(self.empty_cells):
             self.getOptions(box)
             r, c = self.getGridPos(box.row, box.col)
             grids[pos2grid[(r, c)]].addBox(box)
@@ -174,8 +173,9 @@ class Solver(object):
         if box in self.empty_cells:
             self.empty_cells.remove(box)
         else:
-            print self.empty_cells
-            print box
+            # print self.empty_cells
+            # print box
+            pass
         return
 
 if __name__ == '__main__':

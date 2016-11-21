@@ -7,7 +7,7 @@ class Table(QtGui.QWidget):
     def __init__(self):
         super(Table, self).__init__()
         self.setWindowTitle("Sudoku Table")
-        # self.setMinimumSize(300, 300)
+        self.setGeometry(100, 0, 300, 300)
         self.setFixedSize(300, 300)
         return
 

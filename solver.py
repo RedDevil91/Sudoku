@@ -74,6 +74,7 @@ class Solver(object):
     def __init__(self, table):
         self.table = table
         self.empty_cells = self.findEmptyCells()
+        self.prev_length = len(self.empty_cells)
         return
 
     def findEmptyCells(self):
@@ -84,13 +85,20 @@ class Solver(object):
                     empty_cells.append(EmptyBox(row, col))
         return empty_cells
 
-    def solve(self):
+    def solve(self, level=0):
+        if level > 0:
+            print "Recursion depth: %d" % level
         self.checkRowOptions()
         self.checkColOptions()
         self.checkGridOptions()
         self.updateEmptyBoxes()
         if len(self.empty_cells) != 0:
-            self.solve()
+            if self.prev_length == len(self.empty_cells):
+                return
+            self.prev_length = len(self.empty_cells)
+            self.solve(level=level+1)
+            if level == 0 and len(self.empty_cells):
+                self.tryOptions()
             return
         return
 
@@ -187,6 +195,15 @@ class Solver(object):
             if box.fill_value:
                 self.table[box.row][box.col] = box.fill_value
                 self.empty_cells.remove(box)
+        return
+
+    def tryOptions(self):
+        print "Trying!"
+        for box in list(self.empty_cells):
+            if len(box.options) <= 2:
+                box.fill_value = box.options[0]
+                break
+        self.solve()
         return
 
     def getGridPos(self, row, col):

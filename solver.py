@@ -1,4 +1,5 @@
 import numpy as np
+from table import Table
 
 pos2grid = {
     (0, 0): 0,
@@ -75,6 +76,7 @@ class Solver(object):
         self.table = table
         self.empty_cells = self.findEmptyCells()
         self.prev_length = len(self.empty_cells)
+        self.solve()
         return
 
     def findEmptyCells(self):
@@ -219,6 +221,8 @@ class Solver(object):
 
 if __name__ == '__main__':
     import sys
+    from PySide import QtGui
+
     puzzle = np.array([[6, 0, 0, 0, 2, 0, 0, 0, 9],
                        [0, 1, 0, 3, 0, 7, 0, 5, 0],
                        [0, 0, 3, 0, 0, 0, 1, 0, 0],
@@ -251,8 +255,10 @@ if __name__ == '__main__':
 
     solver = Solver(puzzle)
     try:
-        solver.solve()
-        print solver.table
+        app = QtGui.QApplication(sys.argv)
+        table = Table(solver.table)
+        table.show()
+        sys.exit(app.exec_())
     except RuntimeError:
         print "Can't find solution!"
     sys.exit(0)

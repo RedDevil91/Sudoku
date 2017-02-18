@@ -37,7 +37,7 @@ if __name__ == '__main__':
         print "Failed to open caption!"
         sys.exit(1)
 
-    processor = ImageProcesser()
+    processor = ImageProcessor()
 
     while (True):
         # Capture frame-by-frame

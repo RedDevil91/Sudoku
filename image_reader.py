@@ -7,20 +7,13 @@ class ImageRoi(object):
         self.contour = contour
         self.moment = moment
         self.approx = np.reshape(approx, (4, 2)).astype(np.float32)
-        self.old_cord = np.float32([self.approx[1],
-                                    self.approx[0],
-                                    self.approx[2],
-                                    self.approx[3],])
 
-        min_point = (np.inf, np.inf)
-        max_point = (0, 0)
-        for point in self.approx:
-            if point[0] <= min_point[0] and point[1] <= min_point[1]:
-                min_point = point
-            elif point[0] >= max_point[0] and point[1] >= max_point[1]:
-                max_point = point
-        self.min_point = min_point
-        self.max_point = max_point
+        sorted_corners = self.approx[np.lexsort((self.approx[:, 0], self.approx[:, 1]))]
+        self.old_cord = sorted_corners.copy()
+        if sorted_corners[0, 0] > sorted_corners[1, 0]:
+            self.old_cord[0], self.old_cord[1] = sorted_corners[1], sorted_corners[0]
+        if sorted_corners[2, 0] > sorted_corners[3, 0]:
+            self.old_cord[2], self.old_cord[3] = sorted_corners[3], sorted_corners[2]
         return
 
 
@@ -76,7 +69,15 @@ class ImageProcessor(object):
 
         pers_matrix = cv2.getPerspectiveTransform(roi_img.old_cord, self.new_cord)
         out = cv2.warpPerspective(masked_img, pers_matrix, (self.roi_size, self.roi_size))
+        self.drawGrid(out)
         return out
+
+    def drawGrid(self, img):
+        cv2.line(img, (50, 0),  (50, 150),  (255, 0, 0), 1)
+        cv2.line(img, (100, 0), (100, 150), (255, 0, 0), 1)
+        cv2.line(img, (0, 50),  (150, 50),  (255, 0, 0), 1)
+        cv2.line(img, (0, 100), (150, 100), (255, 0, 0), 1)
+
 
 if __name__ == '__main__':
     import time

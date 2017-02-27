@@ -8,15 +8,14 @@ class ImageRoi(object):
         self.moment = moment
         self.approx = np.reshape(approx, (4, 2)).astype(np.float32)
 
-        sorted_corners = self.approx[np.lexsort((self.approx[:, 0], self.approx[:, 1]))]
-        self.old_cord = sorted_corners.copy()
-        if sorted_corners[0, 0] > sorted_corners[1, 0]:
-            self.old_cord[0], self.old_cord[1] = sorted_corners[1], sorted_corners[0]
-        if sorted_corners[2, 0] > sorted_corners[3, 0]:
-            self.old_cord[2], self.old_cord[3] = sorted_corners[3], sorted_corners[2]
-
-        # TODO: use the np.sum and np.diff to order the points! diff -> x-y
-        diff = np.diff(self.approx, axis=1)
+        # sorting corners for perspective transform
+        self.corners = np.zeros(self.approx.shape, dtype=np.float32)
+        corner_diff = np.diff(self.approx, axis=1)
+        corner_sum = np.sum(self.approx, axis=1)
+        self.corners[0] = self.approx[np.argmin(corner_sum)]
+        self.corners[1] = self.approx[np.argmin(corner_diff)]
+        self.corners[2] = self.approx[np.argmax(corner_sum)]
+        self.corners[3] = self.approx[np.argmax(corner_diff)]
         return
 
 
@@ -24,11 +23,11 @@ class ImageProcessor(object):
     kernel = np.array([[0, 1, 0],
                        [1, 1, 1],
                        [0, 1, 0]], dtype=np.uint8)
-    roi_size = 180
-    new_cord = np.float32([[0,          0],
+    roi_size = 27 * 9
+    corners = np.float32([[0,          0],
                            [roi_size,   0],
-                           [0,          roi_size],
-                           [roi_size,   roi_size]])
+                           [roi_size,   roi_size],
+                           [0,          roi_size]])
 
     def __init__(self):
         self.raw_image = None
@@ -44,8 +43,7 @@ class ImageProcessor(object):
     def preprocess(self):
         gray = cv2.cvtColor(self.raw_image, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (11, 11), 0)
-        thresholded = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 5, 2)
-        thresholded = cv2.bitwise_not(thresholded)
+        thresholded = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 5, 2)
         self.preprocessed_image = cv2.dilate(thresholded, self.kernel)
         return
 
@@ -53,10 +51,9 @@ class ImageProcessor(object):
         img, contours, hierarchy = cv2.findContours(self.preprocessed_image.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         blank_image = np.zeros((480, 640, 3), dtype=np.uint8)
 
-        # TODO: use this sorting instead of the other!
-        cnts = sorted(contours, key=cv2.contourArea, reverse=True)
+        # sort the contours
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
 
-        roi_img = None
         for cont in contours:
             perim = cv2.arcLength(cont, True)
             approx = cv2.approxPolyDP(cont, 0.04 * perim, True)
@@ -66,15 +63,18 @@ class ImageProcessor(object):
             area_ratio = contour_area / float(hull_area)
             if len(approx) == 4 and area_ratio > 0.9:
                 M = cv2.moments(cont)
-                if roi_img is None or M > roi_img.moment:
-                    roi_img = ImageRoi(cont, M, approx)
+                roi_img = ImageRoi(cont, M, approx)
+                break
+        else:
+            # if there is no square use
+            roi_img = None
 
         cv2.drawContours(blank_image, [roi_img.contour], -1, (255, 255, 255), -1)
         gray = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
         masked_img = cv2.bitwise_and(self.raw_image, self.raw_image, mask=gray)
         masked_img = cv2.cvtColor(masked_img, cv2.COLOR_BGR2GRAY)
 
-        pers_matrix = cv2.getPerspectiveTransform(roi_img.old_cord, self.new_cord)
+        pers_matrix = cv2.getPerspectiveTransform(roi_img.corners, self.corners)
         self.table_image = cv2.warpPerspective(masked_img, pers_matrix, (self.roi_size, self.roi_size))
         self.getNumbers()
         return self.table_image
@@ -100,49 +100,52 @@ if __name__ == '__main__':
     import sys
     import matplotlib.pyplot as plt
 
-    # ****************************************************************
-    input_img = cv2.imread('test_img2.jpg')
+    def load_from_file(filename):
+        input_img = cv2.imread(filename)
 
-    start = time.time()
-    processor = ImageProcessor()
-    processor.new_image(input_img)
-    processor.preprocess()
-    out = processor.search_table()
-    end = time.time()
-    print "Process time: %f" % (end-start)
+        start = time.time()
+        processor = ImageProcessor()
+        processor.new_image(input_img)
+        processor.preprocess()
+        out = processor.search_table()
+        end = time.time()
+        print "Process time: %f" % (end-start)
 
-    plt.imshow(out)
-    plt.show()
-    for idx, number in enumerate(processor.numbers):
-        cv2.imwrite('numbers/numbers%d.jpg' % idx, number)
-    # ****************************************************************
+        plt.imshow(out)
+        plt.show()
+        for idx, number in enumerate(processor.numbers):
+            cv2.imwrite('numbers/numbers%d.jpg' % idx, number)
 
-    # cap = cv2.VideoCapture(0)
-    #
-    # if not cap.isOpened():
-    #     print "Failed to open caption!"
-    #     sys.exit(1)
-    #
-    # processor = ImageProcessor()
-    #
-    # while (True):
-    #     # Capture frame-by-frame
-    #     _, frame = cap.read()
-    #
-    #     processor.new_image(frame)
-    #     processor.preprocess()
-    #     out = processor.search_table()
-    #
-    #     # Display the resulting frame
-    #     cv2.imshow('frame', out)
-    #
-    #     key = cv2.waitKey(1) & 0xFF
-    #     if key == ord('q'):
-    #         break
-    #     elif key == ord('c'):
-    #         import glob
-    #         cv2.imwrite('test_img%d.jpg' % len(glob.glob('*.jpg')), frame)
-    #
-    # # When everything done, release the capture
-    # cap.release()
-    # cv2.destroyAllWindows()
+    def load_from_camera(camera_number):
+        cap = cv2.VideoCapture(camera_number)
+
+        if not cap.isOpened():
+            print "Failed to open caption!"
+            sys.exit(1)
+
+        processor = ImageProcessor()
+
+        while (True):
+            # Capture frame-by-frame
+            _, frame = cap.read()
+
+            processor.new_image(frame)
+            processor.preprocess()
+            out = processor.search_table()
+
+            # Display the resulting frame
+            cv2.imshow('frame', out)
+
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):
+                break
+            elif key == ord('c'):
+                import glob
+                cv2.imwrite('test_img%d.jpg' % len(glob.glob('*.jpg')), frame)
+
+        # When everything done, release the capture
+        cap.release()
+        cv2.destroyAllWindows()
+
+    load_from_file('test_img2.jpg')
+    # load_from_camera(0)

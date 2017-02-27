@@ -25,9 +25,9 @@ class ImageProcessor(object):
                        [0, 1, 0]], dtype=np.uint8)
     roi_size = 27 * 9
     corners = np.float32([[0,          0],
-                           [roi_size,   0],
-                           [roi_size,   roi_size],
-                           [0,          roi_size]])
+                          [roi_size,   0],
+                          [roi_size,   roi_size],
+                          [0,          roi_size]])
 
     def __init__(self):
         self.raw_image = None
@@ -38,6 +38,8 @@ class ImageProcessor(object):
 
     def new_image(self, image):
         self.raw_image = image
+        self.preprocess()
+        self.search_table()
         return
 
     def preprocess(self):
@@ -48,7 +50,8 @@ class ImageProcessor(object):
         return
 
     def search_table(self):
-        img, contours, hierarchy = cv2.findContours(self.preprocessed_image.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        img, contours, hierarchy = cv2.findContours(self.preprocessed_image.copy(),
+                                                    cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         blank_image = np.zeros((480, 640, 3), dtype=np.uint8)
 
         # sort the contours
@@ -72,11 +75,11 @@ class ImageProcessor(object):
         cv2.drawContours(blank_image, [roi_img.contour], -1, (255, 255, 255), -1)
         gray = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
         masked_img = cv2.bitwise_and(self.raw_image, self.raw_image, mask=gray)
-        masked_img = cv2.cvtColor(masked_img, cv2.COLOR_BGR2GRAY)
+        # masked_img = cv2.cvtColor(masked_img, cv2.COLOR_BGR2GRAY)
 
         pers_matrix = cv2.getPerspectiveTransform(roi_img.corners, self.corners)
         self.table_image = cv2.warpPerspective(masked_img, pers_matrix, (self.roi_size, self.roi_size))
-        self.getNumbers()
+        # self.getNumbers()
         return self.table_image
 
     def drawGrid(self, img):
@@ -92,6 +95,11 @@ class ImageProcessor(object):
                 number = self.table_image[row * self.roi_size / 9:(row + 1) * self.roi_size / 9,
                                           col * self.roi_size / 9:(col + 1) * self.roi_size / 9]
                 _, number = cv2.threshold(number, 110, 255, cv2.THRESH_BINARY_INV)
+                number, contours, hierarchy = cv2.findContours(number.copy(),
+                                                            cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                contours = sorted(contours, key=cv2.contourArea, reverse=True)
+                x, y, w, h = cv2.boundingRect(contours[0])
+                cv2.rectangle(number, (x, y), (x+w, y+h), (0, 255, 0), 1)
                 self.numbers.append(number)
         return
 
@@ -106,12 +114,10 @@ if __name__ == '__main__':
         start = time.time()
         processor = ImageProcessor()
         processor.new_image(input_img)
-        processor.preprocess()
-        out = processor.search_table()
         end = time.time()
         print "Process time: %f" % (end-start)
 
-        plt.imshow(out)
+        plt.imshow(processor.table_image)
         plt.show()
         for idx, number in enumerate(processor.numbers):
             cv2.imwrite('numbers/numbers%d.jpg' % idx, number)
@@ -130,11 +136,9 @@ if __name__ == '__main__':
             _, frame = cap.read()
 
             processor.new_image(frame)
-            processor.preprocess()
-            out = processor.search_table()
 
             # Display the resulting frame
-            cv2.imshow('frame', out)
+            cv2.imshow('frame', processor.table_image)
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
@@ -147,5 +151,5 @@ if __name__ == '__main__':
         cap.release()
         cv2.destroyAllWindows()
 
-    load_from_file('test_img2.jpg')
+    load_from_file('test_img0.jpg')
     # load_from_camera(0)

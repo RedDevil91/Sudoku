@@ -38,22 +38,28 @@ class ImageProcessor(object):
 
     def new_image(self, image):
         self.raw_image = image
-        self.preprocess()
+        self.preprocessed_image = self.preProcessImage(self.raw_image)
         self.search_table()
         return
 
-    def preprocess(self):
+    def preProcessImage(self, image):
         gray = cv2.cvtColor(self.raw_image, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (11, 11), 0)
         thresholded = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 5, 2)
-        self.preprocessed_image = cv2.dilate(thresholded, self.kernel)
-        return
+        return cv2.dilate(thresholded, self.kernel)
 
     def search_table(self):
-        img, contours, hierarchy = cv2.findContours(self.preprocessed_image.copy(),
-                                                    cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        blank_image = np.zeros((480, 640, 3), dtype=np.uint8)
+        roi = self.getSquares(self.preprocessed_image)
 
+        pers_matrix = cv2.getPerspectiveTransform(roi.corners, self.corners)
+        self.table_image = cv2.warpPerspective(self.raw_image, pers_matrix, (self.roi_size, self.roi_size))
+        self.table_image = cv2.cvtColor(self.table_image, cv2.COLOR_BGR2GRAY)
+        self.getNumbers()
+        return self.table_image
+
+    def getSquares(self, image):
+        img, contours, hierarchy = cv2.findContours(image.copy(),
+                                                    cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         # sort the contours
         contours = sorted(contours, key=cv2.contourArea, reverse=True)
 
@@ -69,18 +75,9 @@ class ImageProcessor(object):
                 roi_img = ImageRoi(cont, M, approx)
                 break
         else:
-            # if there is no square use
+            # if there is no square
             roi_img = None
-
-        cv2.drawContours(blank_image, [roi_img.contour], -1, (255, 255, 255), -1)
-        gray = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
-        masked_img = cv2.bitwise_and(self.raw_image, self.raw_image, mask=gray)
-        # masked_img = cv2.cvtColor(masked_img, cv2.COLOR_BGR2GRAY)
-
-        pers_matrix = cv2.getPerspectiveTransform(roi_img.corners, self.corners)
-        self.table_image = cv2.warpPerspective(masked_img, pers_matrix, (self.roi_size, self.roi_size))
-        # self.getNumbers()
-        return self.table_image
+        return roi_img
 
     def drawGrid(self, img):
         cv2.line(img, (self.roi_size/3, 0),   (self.roi_size/3, self.roi_size),     (255, 0, 0), 1)
@@ -95,11 +92,10 @@ class ImageProcessor(object):
                 number = self.table_image[row * self.roi_size / 9:(row + 1) * self.roi_size / 9,
                                           col * self.roi_size / 9:(col + 1) * self.roi_size / 9]
                 _, number = cv2.threshold(number, 110, 255, cv2.THRESH_BINARY_INV)
-                number, contours, hierarchy = cv2.findContours(number.copy(),
-                                                            cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                contours = sorted(contours, key=cv2.contourArea, reverse=True)
-                x, y, w, h = cv2.boundingRect(contours[0])
-                cv2.rectangle(number, (x, y), (x+w, y+h), (0, 255, 0), 1)
+                # number = number[3:24, 3:24]
+                # number, contours, hierarchy = cv2.findContours(number, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                # contours = sorted(contours, key=cv2.contourArea, reverse=True)
+                # number = cv2.drawContours(number, contours, 0, (255, 255, 255), 1)
                 self.numbers.append(number)
         return
 
@@ -151,5 +147,5 @@ if __name__ == '__main__':
         cap.release()
         cv2.destroyAllWindows()
 
-    load_from_file('test_img0.jpg')
+    load_from_file('test_img2.jpg')
     # load_from_camera(0)

@@ -16,6 +16,16 @@ class RegionOfInterest(object):
         self.corners[1] = self.approx[np.argmin(corner_diff)]
         self.corners[2] = self.approx[np.argmax(corner_sum)]
         self.corners[3] = self.approx[np.argmax(corner_diff)]
+
+        # add padding to table
+        self.corners[0][0] -= 5
+        self.corners[0][1] -= 5
+        self.corners[1][0] += 5
+        self.corners[1][1] -= 5
+        self.corners[2][0] += 5
+        self.corners[2][1] += 5
+        self.corners[3][0] -= 5
+        self.corners[3][1] += 5
         return
 
 
@@ -23,8 +33,8 @@ class ImageProcessor(object):
     kernel = np.array([[0, 1, 0],
                        [1, 1, 1],
                        [0, 1, 0]], dtype=np.uint8)
-    horizontal_kernel = np.ones((1, 50), dtype=np.uint8)
-    vertical_kernel = np.ones((50, 1), dtype=np.uint8)
+    horizontal_kernel = np.ones((1, 20), dtype=np.uint8)
+    vertical_kernel = np.ones((20, 1), dtype=np.uint8)
 
     roi_size = 28 * 9
     corners = np.float32([[0,          0],
@@ -57,39 +67,30 @@ class ImageProcessor(object):
         pers_matrix = cv2.getPerspectiveTransform(roi.corners, self.corners)
         self.table_image = cv2.warpPerspective(self.raw_image, pers_matrix, (self.roi_size, self.roi_size))
 
-        # cv2.imshow('orig', self.table_image)
-
         image = cv2.cvtColor(self.table_image, cv2.COLOR_BGR2GRAY)
         image = cv2.adaptiveThreshold(image, 255,
                                       cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 15, -2)
 
-        vertical = cv2.erode(image, self.horizontal_kernel)
-        vertical = cv2.dilate(vertical, self.horizontal_kernel)
-        # vertical = cv2.dilate(vertical, self.horizontal_kernel)
-
-        cv2.imshow('vertical', vertical)
-
-        horizontal = cv2.erode(image, self.vertical_kernel)
-        horizontal = cv2.dilate(horizontal, self.vertical_kernel)
-        # horizontal = cv2.dilate(horizontal, self.vertical_kernel)
-
-        cv2.imshow('horizontal', horizontal)
-
+        vertical = cv2.morphologyEx(image, cv2.MORPH_OPEN, self.horizontal_kernel)
+        horizontal = cv2.morphologyEx(image, cv2.MORPH_OPEN, self.vertical_kernel)
         image = cv2.bitwise_and(vertical, horizontal)
 
-        # cv2.imshow('points', self.table_image)
+        cv2.imshow('vertical', vertical)
+        cv2.imshow('horizontal', horizontal)
 
         img, contours, hierarchy = cv2.findContours(image.copy(),
                                                     cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+        sum_cont = 0
         for cont in contours:
             mom = cv2.moments(cont)
             try:
                 x, y = int(mom['m10']/mom['m00']), int(mom['m01']/mom['m00'])
-                cv2.circle(self.table_image, (x, y), 4, (0, 255, 0), -1)
+                cv2.circle(self.table_image, (x, y), 2, (0, 255, 0), -1)
+                sum_cont += 1
             except ZeroDivisionError:
-                print 'ZeroError!'
-
+                pass
+        print sum_cont
         # self.getNumbers()
         # self.drawGrid(self.table_image)
         return self.table_image

@@ -1,5 +1,7 @@
+.idea
 *.pyc
 *.jpg
 *.zip
 *.rar
 *.db
+*.h5

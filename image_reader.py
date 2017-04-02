@@ -33,8 +33,8 @@ class ImageProcessor(object):
     kernel = np.array([[0, 1, 0],
                        [1, 1, 1],
                        [0, 1, 0]], dtype=np.uint8)
-    horizontal_kernel = np.ones((1, 20), dtype=np.uint8)
-    vertical_kernel = np.ones((20, 1), dtype=np.uint8)
+    horizontal_kernel = np.ones((1, 30), dtype=np.uint8)
+    vertical_kernel = np.ones((30, 1), dtype=np.uint8)
 
     roi_size = 28 * 9
     corners = np.float32([[0,          0],
@@ -47,6 +47,7 @@ class ImageProcessor(object):
         self.preprocessed_image = None
         self.table_image = None
         self.numbers = []
+        self.grip_points = []
         return
 
     def new_image(self, image):
@@ -81,19 +82,38 @@ class ImageProcessor(object):
         img, contours, hierarchy = cv2.findContours(image.copy(),
                                                     cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        sum_cont = 0
         for cont in contours:
             mom = cv2.moments(cont)
             try:
                 x, y = int(mom['m10']/mom['m00']), int(mom['m01']/mom['m00'])
                 cv2.circle(self.table_image, (x, y), 2, (0, 255, 0), -1)
-                sum_cont += 1
+                self.grip_points.append((x, y))
             except ZeroDivisionError:
                 pass
-        print sum_cont
+        print len(self.grip_points)
+        self.checkGridPoints()
         # self.getNumbers()
         # self.drawGrid(self.table_image)
         return self.table_image
+
+    def checkGridPoints(self):
+        # rows = [[] for i in xrange(10)]
+        # sorted(self.grip_points, key=lambda point:point[1])
+        rows = []
+        # sort the grid points by the y coord
+        self.grip_points.sort(key=lambda point: point[1])
+        # group the points according to the y coords
+        for x, y in self.grip_points:
+            for row in rows:
+                if not row:
+                    continue
+                point = row[0]
+                if abs(y - point[1]) < 5:
+                    row.append((x,y))
+                    break
+            else:
+                rows.append([(x,y)])
+        return
 
     def getSquares(self, image):
         img, contours, hierarchy = cv2.findContours(image.copy(),
@@ -125,16 +145,16 @@ class ImageProcessor(object):
         return
 
     def getNumbers(self):
-        for row in range(9):
-            for col in range(9):
-                number = self.table_image[row * self.roi_size / 9:(row + 1) * self.roi_size / 9,
-                                          col * self.roi_size / 9:(col + 1) * self.roi_size / 9]
-                _, number = cv2.threshold(number, 110, 255, cv2.THRESH_BINARY_INV)
+        # for row in range(9):
+        #     for col in range(9):
+        #         number = self.table_image[row * self.roi_size / 9:(row + 1) * self.roi_size / 9,
+        #                                   col * self.roi_size / 9:(col + 1) * self.roi_size / 9]
+        #         _, number = cv2.threshold(number, 110, 255, cv2.THRESH_BINARY_INV)
                 # number = number[3:24, 3:24]
                 # number, contours, hierarchy = cv2.findContours(number, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 # contours = sorted(contours, key=cv2.contourArea, reverse=True)
                 # number = cv2.drawContours(number, contours, 0, (255, 255, 255), 1)
-                self.numbers.append(number)
+                # self.numbers.append(number)
         return
 
 if __name__ == '__main__':
@@ -184,5 +204,5 @@ if __name__ == '__main__':
         cap.release()
         cv2.destroyAllWindows()
 
-    load_from_file('test_img0.jpg')
+    load_from_file('test_img10.jpg')
     # load_from_camera(0)

@@ -3,6 +3,8 @@ import numpy as np
 
 
 class RegionOfInterest(object):
+    padding = 3
+
     def __init__(self, contour, moment, approx):
         self.contour = contour
         self.moment = moment
@@ -18,14 +20,14 @@ class RegionOfInterest(object):
         self.corners[3] = self.approx[np.argmax(corner_diff)]
 
         # add padding to table
-        self.corners[0][0] -= 5
-        self.corners[0][1] -= 5
-        self.corners[1][0] += 5
-        self.corners[1][1] -= 5
-        self.corners[2][0] += 5
-        self.corners[2][1] += 5
-        self.corners[3][0] -= 5
-        self.corners[3][1] += 5
+        self.corners[0][0] -= self.padding
+        self.corners[0][1] -= self.padding
+        self.corners[1][0] += self.padding
+        self.corners[1][1] -= self.padding
+        self.corners[2][0] += self.padding
+        self.corners[2][1] += self.padding
+        self.corners[3][0] -= self.padding
+        self.corners[3][1] += self.padding
         return
 
 
@@ -33,8 +35,9 @@ class ImageProcessor(object):
     kernel = np.array([[0, 1, 0],
                        [1, 1, 1],
                        [0, 1, 0]], dtype=np.uint8)
-    horizontal_kernel = np.ones((1, 30), dtype=np.uint8)
-    vertical_kernel = np.ones((30, 1), dtype=np.uint8)
+    kernel_line_size = 20
+    horizontal_kernel = np.ones((1, kernel_line_size), dtype=np.uint8)
+    vertical_kernel = np.ones((kernel_line_size, 1), dtype=np.uint8)
 
     roi_size = 28 * 9
     corners = np.float32([[0,          0],
@@ -113,6 +116,14 @@ class ImageProcessor(object):
                     break
             else:
                 rows.append([(x,y)])
+        # sort the rows by the x coordinate
+        removable = []
+        for idx, row in enumerate(rows):
+            if len(row) < 5:
+                removable.append(idx)
+                continue
+            row.sort(key=lambda point: point[0])
+        rows = [row for i, row in enumerate(rows) if i not in removable]
         return
 
     def getSquares(self, image):

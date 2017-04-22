@@ -35,16 +35,24 @@ class ImageProcessor(object):
     kernel = np.array([[0, 1, 0],
                        [1, 1, 1],
                        [0, 1, 0]], dtype=np.uint8)
+    # TODO: create constant from these values
     kernel_line_size = 20
+    number_size = 28
+    roi_size = number_size * 9
+    grid_tolerance = 5
+
     horizontal_kernel = np.ones((1, kernel_line_size), dtype=np.uint8)
     vertical_kernel = np.ones((kernel_line_size, 1), dtype=np.uint8)
 
-    roi_size = 28 * 9
     corners = np.float32([[0,          0],
                           [roi_size,   0],
                           [roi_size,   roi_size],
                           [0,          roi_size]])
-    grid_tolerance = 5
+
+    number_corners = np.float32([[0,            0],
+                                 [number_size,  0],
+                                 [number_size,  number_size],
+                                 [0,            number_size]])
 
     def __init__(self):
         self.raw_image = None
@@ -89,7 +97,8 @@ class ImageProcessor(object):
                 points.append(point)
         print len(points)
 
-        # self.getNumbers()
+        self.getNumbers(points)
+
         for point in points:
             x, y = point
             cv2.circle(self.table_image, (x, y), 2, (0, 255, 0), -1)
@@ -179,7 +188,19 @@ class ImageProcessor(object):
             roi_img = None
         return roi_img
 
-    def getNumbers(self):
+    def getNumbers(self, grid_points):
+        numbers = []
+        img = np.zeros((self.roi_size, self.roi_size), dtype=np.uint8)
+        if len(grid_points) == 100:
+            for i in xrange(89):
+                index = i % 10 + i / 10 * 10
+                corners = np.float32([[grid_points[index]],
+                                      [grid_points[index+1]],
+                                      [grid_points[index+11]],
+                                      [grid_points[index+10]]])
+                pers_matrix = cv2.getPerspectiveTransform(corners, self.number_corners)
+                square = cv2.warpPerspective(self.table_image, pers_matrix, (self.number_size, self.number_size))
+                # img[self.number_size:, :] = square
         return
 
 if __name__ == '__main__':
@@ -229,5 +250,5 @@ if __name__ == '__main__':
         cap.release()
         cv2.destroyAllWindows()
 
-    # load_from_file('test_img10.jpg')
-    load_from_camera(0)
+    load_from_file('test_img10.jpg')
+    # load_from_camera(0)

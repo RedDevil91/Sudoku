@@ -51,15 +51,13 @@ class ImageProcessor(object):
         self.preprocessed_image = None
         self.table_image = None
         self.numbers = []
-        self.grid_points = []
-        self.filtered_points = []
         return
 
     def new_image(self, image):
         self.raw_image = image
         self.preprocessed_image = self.preProcessImage(self.raw_image)
-        self.search_table()
-        return
+        out_img = self.search_table()
+        return out_img
 
     def preProcessImage(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -70,22 +68,28 @@ class ImageProcessor(object):
     def search_table(self):
         # get the sudoku table
         roi = self.getSquares(self.preprocessed_image)
+        if not roi:
+            return self.raw_image
 
         # use perspective transformation on the image to get the table only
         pers_matrix = cv2.getPerspectiveTransform(roi.corners, self.corners)
         self.table_image = cv2.warpPerspective(self.raw_image, pers_matrix, (self.roi_size, self.roi_size))
 
-        self.findGridPoints()
-        # print len(self.grip_points)
-        filtered_rows = self.filterGridPoints()
-        filtered_cols = self.filterGridPoints(by_rows=False)
+        # find grid points
+        grid_points = self.findGridPoints()
+        # find the defects in grid points
+        filtered_rows = self.filterGridPoints(grid_points)
+        filtered_cols = self.filterGridPoints(grid_points, by_rows=False)
+
+        row_points = [point for grid_line in filtered_rows for point in grid_line]
+        col_points = [point for grid_line in filtered_cols for point in grid_line]
         points = []
-        for filtered_list in [filtered_rows, filtered_cols]:
-            for grid_line in filtered_list:
-                points += grid_line
-        points = list(set(points))
+        for point in row_points:
+            if point in col_points:
+                points.append(point)
+        print len(points)
+
         # self.getNumbers()
-        # self.drawGrid(self.table_image)
         for point in points:
             x, y = point
             cv2.circle(self.table_image, (x, y), 2, (0, 255, 0), -1)
@@ -93,7 +97,7 @@ class ImageProcessor(object):
 
     def findGridPoints(self):
         # remove the grid points from the previous loop
-        self.grid_points = []
+        grid_points = []
         # use inverse adaptive binary threshold to preprocess the table
         _image = cv2.cvtColor(self.table_image, cv2.COLOR_BGR2GRAY)
         image = cv2.adaptiveThreshold(_image, 255,
@@ -116,17 +120,17 @@ class ImageProcessor(object):
             mom = cv2.moments(cont)
             try:
                 x, y = int(mom['m10'] / mom['m00']), int(mom['m01'] / mom['m00'])
-                self.grid_points.append((x, y))
+                grid_points.append((x, y))
             except ZeroDivisionError:
                 pass
-        return
+        return grid_points
 
-    def filterGridPoints(self, by_rows=True):
+    def filterGridPoints(self, grid_points, by_rows=True):
         grid_lines = []
         # sort the grid points by the y coord
-        self.grid_points.sort(key=lambda point: point[1] if by_rows else point[0])
+        grid_points.sort(key=lambda point: point[1] if by_rows else point[0])
         # group the points according to the x or y coords
-        for x, y in self.grid_points:
+        for x, y in grid_points:
             for grid_line in grid_lines:
                 if not grid_line:
                     continue
@@ -175,24 +179,7 @@ class ImageProcessor(object):
             roi_img = None
         return roi_img
 
-    def drawGrid(self, img):
-        cv2.line(img, (self.roi_size/3, 0),   (self.roi_size/3, self.roi_size),     (255, 0, 0), 1)
-        cv2.line(img, (2*self.roi_size/3, 0), (2*self.roi_size/3, self.roi_size),   (255, 0, 0), 1)
-        cv2.line(img, (0, self.roi_size/3),   (self.roi_size, self.roi_size/3),     (255, 0, 0), 1)
-        cv2.line(img, (0, 2*self.roi_size/3), (self.roi_size, 2*self.roi_size/3),   (255, 0, 0), 1)
-        return
-
     def getNumbers(self):
-        # for row in range(9):
-        #     for col in range(9):
-        #         number = self.table_image[row * self.roi_size / 9:(row + 1) * self.roi_size / 9,
-        #                                   col * self.roi_size / 9:(col + 1) * self.roi_size / 9]
-        #         _, number = cv2.threshold(number, 110, 255, cv2.THRESH_BINARY_INV)
-                # number = number[3:24, 3:24]
-                # number, contours, hierarchy = cv2.findContours(number, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                # contours = sorted(contours, key=cv2.contourArea, reverse=True)
-                # number = cv2.drawContours(number, contours, 0, (255, 255, 255), 1)
-                # self.numbers.append(number)
         return
 
 if __name__ == '__main__':
@@ -204,11 +191,11 @@ if __name__ == '__main__':
 
         start = time.time()
         processor = ImageProcessor()
-        processor.new_image(input_img)
+        out_image = processor.new_image(input_img)
         end = time.time()
         print "Process time: %f" % (end-start)
 
-        cv2.imshow('Table', processor.table_image)
+        cv2.imshow('Table', out_image)
         cv2.waitKey()
         for idx, number in enumerate(processor.numbers):
             cv2.imwrite('numbers/numbers%d.jpg' % idx, number)
@@ -226,10 +213,10 @@ if __name__ == '__main__':
             # Capture frame-by-frame
             _, frame = cap.read()
 
-            processor.new_image(frame)
+            out_image = processor.new_image(frame)
 
             # Display the resulting frame
-            cv2.imshow('frame', processor.table_image)
+            cv2.imshow('frame', out_image)
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
@@ -242,5 +229,5 @@ if __name__ == '__main__':
         cap.release()
         cv2.destroyAllWindows()
 
-    load_from_file('test_img10.jpg')
-    # load_from_camera(0)
+    # load_from_file('test_img10.jpg')
+    load_from_camera(0)

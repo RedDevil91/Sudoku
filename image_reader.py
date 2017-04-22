@@ -50,7 +50,7 @@ class ImageProcessor(object):
         self.preprocessed_image = None
         self.table_image = None
         self.numbers = []
-        self.grip_points = []
+        self.grid_points = []
         return
 
     def new_image(self, image):
@@ -66,19 +66,38 @@ class ImageProcessor(object):
         return cv2.dilate(thresholded, self.kernel)
 
     def search_table(self):
+        # get the sudoku table
         roi = self.getSquares(self.preprocessed_image)
 
+        # use perspective transformation on the image to get the table only
         pers_matrix = cv2.getPerspectiveTransform(roi.corners, self.corners)
         self.table_image = cv2.warpPerspective(self.raw_image, pers_matrix, (self.roi_size, self.roi_size))
 
-        image = cv2.cvtColor(self.table_image, cv2.COLOR_BGR2GRAY)
-        image = cv2.adaptiveThreshold(image, 255,
+        self.findGridPoints()
+        # print len(self.grip_points)
+        self.filterGridPoints()
+        # self.getNumbers()
+        # self.drawGrid(self.table_image)
+        for point in self.grid_points:
+            x, y = point
+            cv2.circle(self.table_image, (x, y), 2, (0, 255, 0), -1)
+        return self.table_image
+
+    def findGridPoints(self):
+        # remove the grid points from the previous loop
+        self.grid_points = []
+        # use inverse adaptive binary threshold to preprocess the table
+        _image = cv2.cvtColor(self.table_image, cv2.COLOR_BGR2GRAY)
+        image = cv2.adaptiveThreshold(_image, 255,
                                       cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 15, -2)
 
+        # find the vertical and the horizontal lines on the image
         vertical = cv2.morphologyEx(image, cv2.MORPH_OPEN, self.horizontal_kernel)
         horizontal = cv2.morphologyEx(image, cv2.MORPH_OPEN, self.vertical_kernel)
+        # the grid points will be the intersections of the horizontal and vertical lines
         image = cv2.bitwise_and(vertical, horizontal)
 
+        # show lines for debug reason
         cv2.imshow('vertical', vertical)
         cv2.imshow('horizontal', horizontal)
 
@@ -88,30 +107,23 @@ class ImageProcessor(object):
         for cont in contours:
             mom = cv2.moments(cont)
             try:
-                x, y = int(mom['m10']/mom['m00']), int(mom['m01']/mom['m00'])
-                cv2.circle(self.table_image, (x, y), 2, (0, 255, 0), -1)
-                self.grip_points.append((x, y))
+                x, y = int(mom['m10'] / mom['m00']), int(mom['m01'] / mom['m00'])
+                self.grid_points.append((x, y))
             except ZeroDivisionError:
                 pass
-        print len(self.grip_points)
-        self.checkGridPoints()
-        # self.getNumbers()
-        # self.drawGrid(self.table_image)
-        return self.table_image
+        return
 
-    def checkGridPoints(self):
-        # rows = [[] for i in xrange(10)]
-        # sorted(self.grip_points, key=lambda point:point[1])
+    def filterGridPoints(self, by_rows=True):
         rows = []
         # sort the grid points by the y coord
-        self.grip_points.sort(key=lambda point: point[1])
+        self.grid_points.sort(key=lambda point: point[1] if by_rows else point[0])
         # group the points according to the y coords
-        for x, y in self.grip_points:
+        for x, y in self.grid_points:
             for row in rows:
                 if not row:
                     continue
                 point = row[0]
-                if abs(y - point[1]) < 5:
+                if abs(y - point[1]) < 3:
                     row.append((x,y))
                     break
             else:
@@ -127,21 +139,26 @@ class ImageProcessor(object):
         return
 
     def getSquares(self, image):
+        # find contours on the preprocessed image
         img, contours, hierarchy = cv2.findContours(image.copy(),
                                                     cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        # sort the contours
+        # sort the contours by the area
         contours = sorted(contours, key=cv2.contourArea, reverse=True)
 
         for cont in contours:
+            # calculate the perimeter and approximate the contour with a polygon
             perim = cv2.arcLength(cont, True)
             approx = cv2.approxPolyDP(cont, 0.04 * perim, True)
-
+            # calculate the area
             contour_area = cv2.contourArea(cont)
             hull_area = cv2.contourArea(cv2.convexHull(cont))
             area_ratio = contour_area / float(hull_area)
+            # if the approximation has 4 vertex and the area ratio is greater than 0.9 then
+            # we assume that it's a square
             if len(approx) == 4 and area_ratio > 0.9:
                 M = cv2.moments(cont)
                 roi_img = RegionOfInterest(cont, M, approx)
+                # the greatest square will be the sudoku table itself
                 break
         else:
             # if there is no square

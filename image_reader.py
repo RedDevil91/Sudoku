@@ -44,6 +44,7 @@ class ImageProcessor(object):
                           [roi_size,   0],
                           [roi_size,   roi_size],
                           [0,          roi_size]])
+    grid_tolerance = 5
 
     def __init__(self):
         self.raw_image = None
@@ -51,6 +52,7 @@ class ImageProcessor(object):
         self.table_image = None
         self.numbers = []
         self.grid_points = []
+        self.filtered_points = []
         return
 
     def new_image(self, image):
@@ -75,10 +77,16 @@ class ImageProcessor(object):
 
         self.findGridPoints()
         # print len(self.grip_points)
-        self.filterGridPoints()
+        filtered_rows = self.filterGridPoints()
+        filtered_cols = self.filterGridPoints(by_rows=False)
+        points = []
+        for filtered_list in [filtered_rows, filtered_cols]:
+            for grid_line in filtered_list:
+                points += grid_line
+        points = list(set(points))
         # self.getNumbers()
         # self.drawGrid(self.table_image)
-        for point in self.grid_points:
+        for point in points:
             x, y = point
             cv2.circle(self.table_image, (x, y), 2, (0, 255, 0), -1)
         return self.table_image
@@ -114,29 +122,31 @@ class ImageProcessor(object):
         return
 
     def filterGridPoints(self, by_rows=True):
-        rows = []
+        grid_lines = []
         # sort the grid points by the y coord
         self.grid_points.sort(key=lambda point: point[1] if by_rows else point[0])
-        # group the points according to the y coords
+        # group the points according to the x or y coords
         for x, y in self.grid_points:
-            for row in rows:
-                if not row:
+            for grid_line in grid_lines:
+                if not grid_line:
                     continue
-                point = row[0]
-                if abs(y - point[1]) < 3:
-                    row.append((x,y))
+                point = grid_line[0]
+                difference = abs(y - point[1]) if by_rows else abs(x - point[0])
+                if difference <= self.grid_tolerance:
+                    grid_line.append((x,y))
                     break
             else:
-                rows.append([(x,y)])
-        # sort the rows by the x coordinate
+                grid_lines.append([(x,y)])
+
+        # sort the rows by the x or y coordinate
         removable = []
-        for idx, row in enumerate(rows):
-            if len(row) < 5:
+        for idx, grid_line in enumerate(grid_lines):
+            if len(grid_line) <= 9:
                 removable.append(idx)
                 continue
-            row.sort(key=lambda point: point[0])
-        rows = [row for i, row in enumerate(rows) if i not in removable]
-        return
+            grid_line.sort(key=lambda point: point[0] if by_rows else point[1])
+        grid_lines = [grid_line for i, grid_line in enumerate(grid_lines) if i not in removable]
+        return grid_lines
 
     def getSquares(self, image):
         # find contours on the preprocessed image

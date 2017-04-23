@@ -37,7 +37,8 @@ class ImageProcessor(object):
                        [0, 1, 0]], dtype=np.uint8)
     # TODO: create constant from these values
     kernel_line_size = 20
-    number_size = 32
+    number_size = 36
+    number_padding = 4
     roi_size = number_size * 9
     grid_tolerance = 5
 
@@ -205,7 +206,8 @@ class ImageProcessor(object):
                     square = cv2.cvtColor(square, cv2.COLOR_BGR2GRAY)
                     _, square = cv2.threshold(square, 110, 255, cv2.THRESH_BINARY_INV)
                     # reshape numbers to get 28x28 pixels and crop the grid lines from the border
-                    square = square[2:30, 2:30]
+                    square = square[self.number_padding:self.number_size - self.number_padding,
+                                    self.number_padding:self.number_size - self.number_padding]
                     numbers.append(square)
         return numbers
 

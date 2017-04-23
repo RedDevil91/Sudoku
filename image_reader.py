@@ -36,7 +36,7 @@ class ImageProcessor(object):
                        [1, 1, 1],
                        [0, 1, 0]], dtype=np.uint8)
     # TODO: create constant from these values
-    kernel_line_size = 20
+    kernel_line_size = 25
     number_size = 36
     number_padding = 4
     roi_size = number_size * 9
@@ -134,7 +134,9 @@ class ImageProcessor(object):
                 x, y = int(mom['m10'] / mom['m00']), int(mom['m01'] / mom['m00'])
                 grid_points.append((x, y))
             except ZeroDivisionError:
-                pass
+                # add the centroids when there is zero division error (the contour is a line)
+                points = np.ravel(cont)
+                grid_points.append((points[0], points[1]))
         return grid_points
 
     def filterGridPoints(self, grid_points, by_rows=True):
@@ -258,5 +260,5 @@ if __name__ == '__main__':
         cap.release()
         cv2.destroyAllWindows()
 
-    load_from_file('test_img11.jpg')
-    # load_from_camera(0)
+    # load_from_file('test_img1.jpg')
+    load_from_camera(0)

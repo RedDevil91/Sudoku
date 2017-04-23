@@ -37,7 +37,7 @@ class ImageProcessor(object):
                        [0, 1, 0]], dtype=np.uint8)
     # TODO: create constant from these values
     kernel_line_size = 20
-    number_size = 28
+    number_size = 32
     roi_size = number_size * 9
     grid_tolerance = 5
 
@@ -69,8 +69,8 @@ class ImageProcessor(object):
 
     def preProcessImage(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray, (11, 11), 0)
-        thresholded = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 5, 2)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        thresholded = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 11, 2)
         return cv2.dilate(thresholded, self.kernel)
 
     def search_table(self):
@@ -112,6 +112,7 @@ class ImageProcessor(object):
         image = cv2.adaptiveThreshold(_image, 255,
                                       cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 15, -2)
 
+        cv2.imshow('threshold', image)
         # find the vertical and the horizontal lines on the image
         vertical = cv2.morphologyEx(image, cv2.MORPH_OPEN, self.horizontal_kernel)
         horizontal = cv2.morphologyEx(image, cv2.MORPH_OPEN, self.vertical_kernel)
@@ -121,6 +122,7 @@ class ImageProcessor(object):
         # show lines for debug reason
         cv2.imshow('vertical', vertical)
         cv2.imshow('horizontal', horizontal)
+        cv2.imshow('grid', image)
 
         img, contours, hierarchy = cv2.findContours(image.copy(),
                                                     cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -190,7 +192,6 @@ class ImageProcessor(object):
 
     def getNumbers(self, grid_points):
         numbers = []
-        img = np.zeros((self.roi_size, self.roi_size), dtype=np.uint8)
         if len(grid_points) == 100:
             for row in xrange(9):
                 for col in xrange(9):
@@ -203,6 +204,8 @@ class ImageProcessor(object):
                     square = cv2.warpPerspective(self.table_image, pers_matrix, (self.number_size, self.number_size))
                     square = cv2.cvtColor(square, cv2.COLOR_BGR2GRAY)
                     _, square = cv2.threshold(square, 110, 255, cv2.THRESH_BINARY_INV)
+                    # reshape numbers to get 28x28 pixels and crop the grid lines from the border
+                    square = square[2:30, 2:30]
                     numbers.append(square)
         return numbers
 
@@ -253,5 +256,5 @@ if __name__ == '__main__':
         cap.release()
         cv2.destroyAllWindows()
 
-    load_from_file('test_img10.jpg')
+    load_from_file('test_img11.jpg')
     # load_from_camera(0)

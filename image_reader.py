@@ -97,7 +97,7 @@ class ImageProcessor(object):
                 points.append(point)
         print len(points)
 
-        self.getNumbers(points)
+        self.numbers = self.getNumbers(points)
 
         for point in points:
             x, y = point
@@ -192,16 +192,19 @@ class ImageProcessor(object):
         numbers = []
         img = np.zeros((self.roi_size, self.roi_size), dtype=np.uint8)
         if len(grid_points) == 100:
-            for i in xrange(89):
-                index = i % 10 + i / 10 * 10
-                corners = np.float32([[grid_points[index]],
-                                      [grid_points[index+1]],
-                                      [grid_points[index+11]],
-                                      [grid_points[index+10]]])
-                pers_matrix = cv2.getPerspectiveTransform(corners, self.number_corners)
-                square = cv2.warpPerspective(self.table_image, pers_matrix, (self.number_size, self.number_size))
-                # img[self.number_size:, :] = square
-        return
+            for row in xrange(9):
+                for col in xrange(9):
+                    index = col + row * 10
+                    corners = np.float32([[grid_points[index]],
+                                          [grid_points[index + 1]],
+                                          [grid_points[index + 11]],
+                                          [grid_points[index + 10]]])
+                    pers_matrix = cv2.getPerspectiveTransform(corners, self.number_corners)
+                    square = cv2.warpPerspective(self.table_image, pers_matrix, (self.number_size, self.number_size))
+                    square = cv2.cvtColor(square, cv2.COLOR_BGR2GRAY)
+                    _, square = cv2.threshold(square, 110, 255, cv2.THRESH_BINARY_INV)
+                    numbers.append(square)
+        return numbers
 
 if __name__ == '__main__':
     import time

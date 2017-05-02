@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from keras.models import model_from_json
 
 
 class RegionOfInterest(object):
@@ -31,6 +32,15 @@ class RegionOfInterest(object):
         return
 
 
+class Number(object):
+    def __init__(self, raw_image, bl_corner, number):
+        self.image = raw_image
+        x, y = bl_corner
+        self.bl_corner = x, y
+        self.number = number
+        return
+
+
 class ImageProcessor(object):
     kernel = np.array([[0, 1, 0],
                        [1, 1, 1],
@@ -40,7 +50,7 @@ class ImageProcessor(object):
     number_size = 36
     number_padding = 4
     roi_size = number_size * 9
-    grid_tolerance = 5
+    grid_tolerance = 7
 
     horizontal_kernel = np.ones((1, kernel_line_size), dtype=np.uint8)
     vertical_kernel = np.ones((kernel_line_size, 1), dtype=np.uint8)
@@ -60,6 +70,13 @@ class ImageProcessor(object):
         self.preprocessed_image = None
         self.table_image = None
         self.numbers = []
+
+        # load model
+        with open('mnist_model.json', 'r+') as json_file:
+            loaded_json_model = json_file.read()
+        self.model = model_from_json(loaded_json_model)
+        self.model.load_weights('mnist_model_weights.h5')
+        self.model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
         return
 
     def new_image(self, image):
@@ -100,9 +117,13 @@ class ImageProcessor(object):
 
         self.numbers = self.getNumbers(points)
 
-        for point in points:
+        for i, point in enumerate(points):
             x, y = point
             cv2.circle(self.table_image, (x, y), 2, (0, 255, 0), -1)
+            # cv2.putText(self.table_image, str(i), (x, y), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (255, 0, 0))
+        for number in self.numbers:
+            cv2.putText(self.table_image, str(number.number), number.bl_corner,
+                        cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (255, 0, 0))
         return self.table_image
 
     def findGridPoints(self):
@@ -210,7 +231,11 @@ class ImageProcessor(object):
                     # reshape numbers to get 28x28 pixels and crop the grid lines from the border
                     square = square[self.number_padding:self.number_size - self.number_padding,
                                     self.number_padding:self.number_size - self.number_padding]
-                    numbers.append(square)
+                    input_img = np.ravel(square)
+                    input_img = input_img.reshape((1, 784))
+                    number_out = self.model.predict(input_img)
+                    number_out = np.argmax(number_out[0])
+                    numbers.append(Number(square, grid_points[index + 10], number_out))
         return numbers
 
 if __name__ == '__main__':
@@ -229,7 +254,7 @@ if __name__ == '__main__':
         cv2.imshow('Table', out_image)
         cv2.waitKey()
         for idx, number in enumerate(processor.numbers):
-            cv2.imwrite('numbers/numbers%d.jpg' % idx, number)
+            cv2.imwrite('numbers/numbers%d.jpg' % idx, number.image)
 
     def load_from_camera(camera_number):
         cap = cv2.VideoCapture(camera_number)
@@ -260,5 +285,5 @@ if __name__ == '__main__':
         cap.release()
         cv2.destroyAllWindows()
 
-    # load_from_file('test_img1.jpg')
+    # load_from_file('test_img3.jpg')
     load_from_camera(0)

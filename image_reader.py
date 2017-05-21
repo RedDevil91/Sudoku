@@ -255,6 +255,7 @@ if __name__ == '__main__':
         cv2.waitKey()
         for idx, number in enumerate(processor.numbers):
             cv2.imwrite('numbers/numbers%d.jpg' % idx, number.image)
+        return
 
     def load_from_camera(camera_number):
         cap = cv2.VideoCapture(camera_number)
@@ -265,11 +266,15 @@ if __name__ == '__main__':
 
         processor = ImageProcessor()
 
+        times = []
+
         while (True):
             # Capture frame-by-frame
             _, frame = cap.read()
 
+            start = time.time()
             out_image = processor.new_image(frame)
+            times.append(time.time() - start)
 
             # Display the resulting frame
             cv2.imshow('frame', out_image)
@@ -284,6 +289,10 @@ if __name__ == '__main__':
         # When everything done, release the capture
         cap.release()
         cv2.destroyAllWindows()
+
+        print float(sum(times)) / float(len(times))
+        return
+
 
     # load_from_file('test_img3.jpg')
     load_from_camera(0)

@@ -74,22 +74,15 @@ class RowOrColumn(object):
 class Solver(object):
     def __init__(self, table):
         self.table = table
-        self.empty_cells = self.findEmptyCells()
+        self.empty_cells = [EmptyBox(row, col) for row in range(9) for col in range(9) if not self.table[row, col]]
         self.prev_length = len(self.empty_cells)
+        # TODO: remove solve!!!
         self.solve()
         return
 
-    def findEmptyCells(self):
-        empty_cells = list()
-        for row in xrange(9):
-            for col in xrange(9):
-                if self.table[row, col] == 0:
-                    empty_cells.append(EmptyBox(row, col))
-        return empty_cells
-
     def solve(self, level=0):
         if level > 0:
-            print "Recursion depth: %d" % level
+            print("Recursion depth: %d" % level)
         self.checkRowOptions()
         self.checkColOptions()
         self.checkGridOptions()
@@ -129,8 +122,8 @@ class Solver(object):
     def checkBox(self, row, col):
         excl_numbers = set()
         box_row, box_col = self.getGridPos(row, col)
-        for row in xrange(box_row * 3, (box_row + 1) * 3):
-            for col in xrange(box_col * 3, (box_col + 1) * 3):
+        for row in range(box_row * 3, (box_row + 1) * 3):
+            for col in range(box_col * 3, (box_col + 1) * 3):
                 excl_numbers.add(self.table[row, col])
         excl_numbers.remove(0)
         return excl_numbers
@@ -200,7 +193,7 @@ class Solver(object):
         return
 
     def tryOptions(self):
-        print "Trying!"
+        print("Trying!")
         for box in list(self.empty_cells):
             if len(box.options) <= 2:
                 box.fill_value = box.options[0]
@@ -209,19 +202,20 @@ class Solver(object):
         return
 
     def getGridPos(self, row, col):
-        return row / 3, col / 3
+        return row // 3, col // 3
 
     def setValue(self, box):
         self.table[box.row, box.col] = box.fill_value
         if box in self.empty_cells:
             self.empty_cells.remove(box)
         else:
-            print box
+            print(box)
         return
+
 
 if __name__ == '__main__':
     import sys
-    from PySide import QtGui
+    from PyQt5.QtWidgets import QApplication
 
     puzzle = np.array([[6, 0, 0, 0, 2, 0, 0, 0, 9],
                        [0, 1, 0, 3, 0, 7, 0, 5, 0],
@@ -255,10 +249,10 @@ if __name__ == '__main__':
 
     solver = Solver(puzzle)
     try:
-        app = QtGui.QApplication(sys.argv)
+        app = QApplication(sys.argv)
         table = Table(solver.table)
         table.show()
         sys.exit(app.exec_())
     except RuntimeError:
-        print "Can't find solution!"
+        print("Can't find solution!")
     sys.exit(0)

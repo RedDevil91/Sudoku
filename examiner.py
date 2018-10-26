@@ -3,8 +3,8 @@ from solver import pos2grid
 
 
 def examiner(table):
-    for idx in xrange(9):
-        for value in set(table[idx,:]):
+    for idx in range(9):
+        for value in set(table[idx, :]):
             if np.count_nonzero(table[idx, :] == value) > 1:
                 return False
         for value in set(table[:, idx]):
@@ -12,13 +12,14 @@ def examiner(table):
                 return False
     for row_idx, col_idx in pos2grid.keys():
         grid_values = list()
-        for row in xrange(row_idx * 3, (row_idx + 1) * 3):
-            for col in xrange(col_idx * 3, (col_idx + 1) * 3):
+        for row in range(row_idx * 3, (row_idx + 1) * 3):
+            for col in range(col_idx * 3, (col_idx + 1) * 3):
                 grid_values.append(table[row, col])
         for value in grid_values:
             if grid_values.count(value) > 1:
                 return False
     return True
+
 
 if __name__ == '__main__':
     test_table = np.array([[9, 6, 3, 1, 7, 4, 2, 5, 8],
@@ -51,4 +52,4 @@ if __name__ == '__main__':
                             [3, 4, 5, 6, 7, 8, 9, 1, 2],
                             [2, 3, 4, 5, 6, 7, 8, 9, 1]])
 
-    print examiner(test_table)
+    print(examiner(test_table))
